@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import { ZipArchive } from 'archiver';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -77,9 +78,25 @@ app.post('/api/projects', requireUser, upload.array('files', 500), (req, res) =>
   const items = savedItems(); items.unshift(item); writeItems(items);
   res.status(201).json(item);
 });
-app.delete('/api/projects/:id', requireAdmin, (req, res) => {
+app.get('/api/projects/:id/download', (req, res) => {
+  const item = savedItems().find(project => String(project.id) === req.params.id);
+  const attachments = item?.attachments || (item?.fileUrl ? [{ url: item.fileUrl, name: item.fileName }] : []);
+  if (!item || !attachments.length) return res.status(404).json({ error: 'Không tìm thấy tệp của dự án.' });
+  const archiveName = `${item.title.replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-').slice(0, 60) || 'du-an'}.zip`;
+  res.attachment(archiveName);
+  const zip = new ZipArchive({ zlib: { level: 9 } });
+  zip.on('error', () => res.destroy());
+  zip.pipe(res);
+  attachments.forEach((file, index) => {
+    const source = path.join(uploadDir, path.basename(file.url));
+    if (fs.existsSync(source)) zip.file(source, { name: file.name || `tep-${index + 1}` });
+  });
+  zip.finalize();
+});
+app.delete('/api/projects/:id', requireUser, (req, res) => {
   const items = savedItems(), index = items.findIndex(item => String(item.id) === req.params.id);
   if (index < 0) return res.status(404).json({ error: 'Không tìm thấy bài đăng hoặc đây là bài mẫu.' });
+  if (req.user.role !== 'admin' && items[index].ownerId !== req.user.id) return res.status(403).json({ error: 'Bạn chỉ có thể xóa bài đăng của mình.' });
   const [item] = items.splice(index, 1); writeItems(items);
   (item.attachments || []).forEach(file => { const safePath = path.join(uploadDir, path.basename(file.url)); if (fs.existsSync(safePath)) fs.unlinkSync(safePath); });
   res.json({ ok: true });
