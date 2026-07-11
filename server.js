@@ -14,9 +14,9 @@ fs.mkdirSync(path.dirname(dataFile), { recursive: true });
 
 const storage = multer.diskStorage({
   destination: uploadDir,
-  filename: (_, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-')}`)
+  filename: (_, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-')}`)
 });
-const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024, files: 500 } });
 
 const examples = [
   { id: 1, type: 'game', title: 'Thành phố xanh', author: 'Nhóm Pixel', school: 'ĐH Bách Khoa Hà Nội', desc: 'Game mô phỏng xây dựng thành phố bền vững bằng Unity.', tags: ['Unity', 'Môi trường'], icon: '🌿', color: 'mint' },
@@ -33,13 +33,14 @@ function writeItems(items) { fs.writeFileSync(dataFile, JSON.stringify(items, nu
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadDir));
 app.get('/api/projects', (_, res) => res.json([...savedItems(), ...examples]));
-app.post('/api/projects', upload.single('file'), (req, res) => {
+app.post('/api/projects', upload.array('files', 500), (req, res) => {
   const { title, author, school, type, description, tags } = req.body;
-  if (!title || !author || !description || !req.file) return res.status(400).json({ error: 'Vui lòng nhập đủ thông tin và chọn tệp.' });
+  if (!title || !author || !description || !req.files?.length) return res.status(400).json({ error: 'Vui lòng nhập đủ thông tin và chọn ít nhất một tệp.' });
+  const attachments = req.files.map(file => ({ url: `/uploads/${file.filename}`, name: file.originalname }));
   const item = {
     id: Date.now(), title, author, school: school || 'Sinh viên Việt Nam', type: type || 'document',
     desc: description, tags: (tags || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 4),
-    icon: type === 'game' ? '🎮' : type === 'code' ? '</>' : '▤', color: 'purple', fileUrl: `/uploads/${req.file.filename}`, fileName: req.file.originalname
+    icon: type === 'game' ? '🎮' : type === 'code' ? '</>' : '▤', color: 'purple', fileUrl: attachments[0].url, fileName: attachments[0].name, attachments
   };
   const items = savedItems(); items.unshift(item); writeItems(items);
   res.status(201).json(item);

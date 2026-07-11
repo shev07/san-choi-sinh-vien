@@ -19,3 +19,12 @@
 .brand-mark i:nth-child(1) { background: var(--lime); }
 .brand-mark i:nth-child(2) { background: #7ec5c4; }
 .brand-mark i:nth-child(3) { grid-column: 1 / 3; background: var(--orange); }
+
+.drop-zone { border: 1.5px dashed #9bb8ae; border-radius: 7px; padding: 22px 16px; text-align: center; margin: 4px 0 16px; background: #f8fbf7; transition: .18s ease; }
+.drop-zone.dragging { border-color: var(--orange); background: #fff1e9; transform: scale(1.01); }
+.drop-zone strong, .drop-zone span, .drop-zone small { display: block; }
+.drop-zone strong { font-size: 13px; }
+.drop-zone span, .drop-zone small { color: #667b75; font-size: 10px; margin-top: 5px; }
+.drop-zone > div { display: flex; justify-content: center; gap: 8px; margin: 14px 0 4px; }
+.pick-file { display: inline-flex; margin: 0; border: 1px solid #b8c8c1; border-radius: 4px; padding: 7px 10px; background: white; color: #2e5048; cursor: pointer; font-size: 10px; }
+.pick-file input { display: none; }
