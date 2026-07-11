@@ -67,7 +67,7 @@ app.post('/api/auth/login', express.json(), async (req, res) => {
 });
 app.post('/api/projects', requireUser, upload.array('files', 500), (req, res) => {
   const { title, author, school, type, description, tags } = req.body;
-  if (!title || !author || !description || !req.files?.length) return res.status(400).json({ error: 'Vui lòng nhập đủ thông tin và chọn ít nhất một tệp.' });
+  if (!title || !description || !req.files?.length) return res.status(400).json({ error: 'Vui lòng nhập đủ thông tin và chọn ít nhất một tệp.' });
   const attachments = req.files.map(file => ({ url: `/uploads/${file.filename}`, name: file.originalname }));
   const item = {
     id: Date.now(), title, author: req.user.name, ownerId: req.user.id, school: school || 'Sinh viên Việt Nam', type: type || 'document',
