@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (_, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-')}`)
 });
-const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024, files: 500 } });
+const upload = multer({ storage, preservePath: true, limits: { fileSize: 100 * 1024 * 1024, files: 500 } });
 
 const examples = [
   { id: 1, type: 'game', title: 'Thành phố xanh', author: 'Nhóm Pixel', school: 'ĐH Bách Khoa Hà Nội', desc: 'Game mô phỏng xây dựng thành phố bền vững bằng Unity.', tags: ['Unity', 'Môi trường'], icon: '🌿', color: 'mint' },
@@ -50,6 +50,10 @@ function publicUser(user) { return { id: user.id, name: user.name, email: user.e
 function archiveFolderName(title) {
   const normalized = String(title || 'du-an').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
   return normalized.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'du-an';
+}
+function safeArchivePath(value) {
+  const parts = String(value || '').replace(/\\/g, '/').split('/').filter(part => part && part !== '.' && part !== '..').map(part => part.replace(/[^a-zA-Z0-9._ -]/g, '-'));
+  return parts.join('/') || 'tep-khong-ten';
 }
 function requireUser(req, res, next) { const user = currentUser(req); if (!user) return res.status(401).json({ error: 'Vui lòng đăng nhập để thực hiện thao tác này.' }); req.user = user; next(); }
 function requireAdmin(req, res, next) { requireUser(req, res, () => req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Chỉ quản trị viên có quyền này.' })); }
@@ -86,7 +90,10 @@ app.get('/api/projects/:id/download', (req, res) => {
   const item = savedItems().find(project => String(project.id) === req.params.id);
   const attachments = item?.attachments || (item?.fileUrl ? [{ url: item.fileUrl, name: item.fileName }] : []);
   if (!item || !attachments.length) return res.status(404).json({ error: 'Không tìm thấy tệp của dự án.' });
-  const folderName = archiveFolderName(item.title);
+  const attachmentPaths = attachments.map(file => safeArchivePath(file.name));
+  const firstParts = attachmentPaths.map(file => file.split('/')[0]);
+  const sharedUploadFolder = firstParts.length > 0 && attachmentPaths.every(file => file.includes('/') && file.split('/')[0] === firstParts[0]);
+  const folderName = sharedUploadFolder ? firstParts[0] : archiveFolderName(item.title);
   const archiveName = `${folderName}.zip`;
   res.attachment(archiveName);
   const zip = new ZipArchive({ store: true });
@@ -94,7 +101,9 @@ app.get('/api/projects/:id/download', (req, res) => {
   zip.pipe(res);
   attachments.forEach((file, index) => {
     const source = path.join(uploadDir, path.basename(file.url));
-    if (fs.existsSync(source)) zip.file(source, { name: `${folderName}/${path.basename(file.name || `tep-${index + 1}`)}` });
+    const relativePath = attachmentPaths[index] || `tep-${index + 1}`;
+    const entryName = sharedUploadFolder ? relativePath : `${folderName}/${relativePath}`;
+    if (fs.existsSync(source)) zip.file(source, { name: entryName });
   });
   zip.finalize();
 });
