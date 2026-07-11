@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: san-choi-sinh-vien
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
