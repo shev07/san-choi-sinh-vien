@@ -28,3 +28,17 @@
 .drop-zone > div { display: flex; justify-content: center; gap: 8px; margin: 14px 0 4px; }
 .pick-file { display: inline-flex; margin: 0; border: 1px solid #b8c8c1; border-radius: 4px; padding: 7px 10px; background: white; color: #2e5048; cursor: pointer; font-size: 10px; }
 .pick-file input { display: none; }
+.account-area { display: flex; gap: 9px; align-items: center; }
+.login-button, .switch-auth { border: 0; background: transparent; color: var(--ink); font-size: 11px; font-weight: 800; cursor: pointer; }
+.account-name { font-size: 11px; font-weight: 800; max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-name b { font: 8px 'DM Mono'; color: var(--orange); margin-left: 4px; }
+.delete-project { border: 0; background: transparent; color: #ba4b43; font-size: 10px; font-weight: 800; cursor: pointer; margin-left: auto; }
+.author { display: flex; align-items: center; }
+#auth-dialog { max-width: 420px; }
+.switch-auth { display: block; margin: 14px auto 0; color: #56716a; }
+#admin-dialog { max-width: 550px; }
+#admin-content > p { color: #5d6b6a; font-size: 13px; line-height: 1.6; }
+.admin-list { max-height: 320px; overflow: auto; border-top: 1px solid #e4e5df; }
+.admin-list div { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid #e4e5df; font-size: 12px; font-weight: 700; }
+.admin-list span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-list small { color: #75817e; font-weight: 400; }
