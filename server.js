@@ -47,6 +47,10 @@ const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toStr
 function createToken(user) { const payload = Buffer.from(JSON.stringify({ id: user.id, role: user.role, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 })).toString('base64url'); const sig = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url'); return `${payload}.${sig}`; }
 function currentUser(req) { const token = req.headers.authorization?.replace(/^Bearer\s+/i, ''); if (!token) return null; const [payload, signature] = token.split('.'); if (!payload || !signature) return null; const expected = crypto.createHmac('sha256', sessionSecret).update(payload).digest('base64url'); if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null; try { const data = JSON.parse(Buffer.from(payload, 'base64url')); return data.exp > Date.now() ? users().find(user => user.id === data.id) || null : null; } catch { return null; } }
 function publicUser(user) { return { id: user.id, name: user.name, email: user.email, role: user.role }; }
+function archiveFolderName(title) {
+  const normalized = String(title || 'du-an').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+  return normalized.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'du-an';
+}
 function requireUser(req, res, next) { const user = currentUser(req); if (!user) return res.status(401).json({ error: 'Vui lòng đăng nhập để thực hiện thao tác này.' }); req.user = user; next(); }
 function requireAdmin(req, res, next) { requireUser(req, res, () => req.user.role === 'admin' ? next() : res.status(403).json({ error: 'Chỉ quản trị viên có quyền này.' })); }
 async function seedAdmin() { const email = process.env.ADMIN_EMAIL?.trim().toLowerCase(), password = process.env.ADMIN_PASSWORD; if (!email || !password || users().some(user => user.email === email)) return; const data = users(); data.push({ id: crypto.randomUUID(), name: 'Quản trị viên', email, password: await hashPassword(password), role: 'admin', createdAt: new Date().toISOString() }); writeUsers(data); console.log(`Admin account ready: ${email}`); }
@@ -82,14 +86,15 @@ app.get('/api/projects/:id/download', (req, res) => {
   const item = savedItems().find(project => String(project.id) === req.params.id);
   const attachments = item?.attachments || (item?.fileUrl ? [{ url: item.fileUrl, name: item.fileName }] : []);
   if (!item || !attachments.length) return res.status(404).json({ error: 'Không tìm thấy tệp của dự án.' });
-  const archiveName = `${item.title.replace(/[^a-zA-Z0-9-_]/g, '-').replace(/-+/g, '-').slice(0, 60) || 'du-an'}.zip`;
+  const folderName = archiveFolderName(item.title);
+  const archiveName = `${folderName}.zip`;
   res.attachment(archiveName);
-  const zip = new ZipArchive({ zlib: { level: 9 } });
+  const zip = new ZipArchive({ store: true });
   zip.on('error', () => res.destroy());
   zip.pipe(res);
   attachments.forEach((file, index) => {
     const source = path.join(uploadDir, path.basename(file.url));
-    if (fs.existsSync(source)) zip.file(source, { name: file.name || `tep-${index + 1}` });
+    if (fs.existsSync(source)) zip.file(source, { name: `${folderName}/${path.basename(file.name || `tep-${index + 1}`)}` });
   });
   zip.finalize();
 });
